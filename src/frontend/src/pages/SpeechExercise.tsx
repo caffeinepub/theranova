@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import ApprovalGate from "../components/ApprovalGate";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useFetchSpeechExercises, useSubmitSession } from "../hooks/useQueries";
 
@@ -132,6 +133,7 @@ export default function SpeechExercise() {
     from: "/auth/speech/exercise/$exerciseIndex",
   });
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
   const { data: exercises } = useFetchSpeechExercises();
   const { mutate: submitSession, isPending: isSubmitting } = useSubmitSession();
 
@@ -146,8 +148,8 @@ export default function SpeechExercise() {
   const exercise = exercises?.[idx] ?? "";
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   const startRecording = () => {
     const SpeechRecognitionAPI =
@@ -198,6 +200,10 @@ export default function SpeechExercise() {
 
   const handleSubmit = () => {
     if (score === null) return;
+    if (isDemoMode) {
+      setSubmitted(true);
+      return;
+    }
     submitSession(
       {
         task: { __kind__: "speechTask", speechTask: exercise },
@@ -365,11 +371,17 @@ export default function SpeechExercise() {
             <div className="p-6 rounded-2xl bg-success/10 border border-success/20">
               <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
               <p className="font-display font-bold text-lg text-foreground">
-                Result Saved!
+                {isDemoMode ? "Exercise Complete!" : "Result Saved!"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 Score: {score}%
               </p>
+              {isDemoMode && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  In demo mode, scores are not saved. Sign in to track your
+                  progress.
+                </p>
+              )}
             </div>
             <div className="flex gap-3 justify-center mt-4">
               <Button variant="outline" onClick={handleRetry}>

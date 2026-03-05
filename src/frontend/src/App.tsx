@@ -6,6 +6,7 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 import Layout from "./components/Layout";
+import { DemoProvider } from "./contexts/DemoContext";
 import Dashboard from "./pages/Dashboard";
 import EyeControlModule from "./pages/EyeControlModule";
 import LoginPage from "./pages/LoginPage";
@@ -14,6 +15,7 @@ import MotorProgress from "./pages/MotorProgress";
 import PathTracingGame from "./pages/PathTracingGame";
 import PatientDetailPage from "./pages/PatientDetailPage";
 import ReactionGame from "./pages/ReactionGame";
+import RecoveryTipsPage from "./pages/RecoveryTipsPage";
 import SpeechExercise from "./pages/SpeechExercise";
 import SpeechModule from "./pages/SpeechModule";
 import SpeechProgress from "./pages/SpeechProgress";
@@ -115,10 +117,17 @@ const patientDetailRoute = createRoute({
   component: PatientDetailPage,
 });
 
+const tipsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/tips",
+  component: RecoveryTipsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
     dashboardRoute,
+    tipsRoute,
     speechRoute,
     speechExerciseRoute,
     speechProgressRoute,
@@ -142,5 +151,11 @@ declare module "@tanstack/react-router" {
 }
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <div className="dark">
+      <DemoProvider>
+        <RouterProvider router={router} />
+      </DemoProvider>
+    </div>
+  );
 }

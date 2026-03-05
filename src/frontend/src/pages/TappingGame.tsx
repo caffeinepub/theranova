@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, CheckCircle, Loader2, RefreshCw, Zap } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import ApprovalGate from "../components/ApprovalGate";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSubmitSession } from "../hooks/useQueries";
 
@@ -13,6 +14,7 @@ const GAME_DURATION = 30;
 export default function TappingGame() {
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
   const { mutate: submitSession, isPending: isSubmitting } = useSubmitSession();
 
   const [gameState, setGameState] = useState<"idle" | "playing" | "complete">(
@@ -25,8 +27,8 @@ export default function TappingGame() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   useEffect(() => {
     if (gameState === "playing") {
@@ -64,6 +66,10 @@ export default function TappingGame() {
   const score = Math.min(100, Math.round((tapCount / 60) * 100));
 
   const handleSubmit = () => {
+    if (isDemoMode) {
+      setSubmitted(true);
+      return;
+    }
     submitSession(
       { task: { __kind__: "motorTask", motorTask: "Tapping Speed" }, score },
       { onSuccess: () => setSubmitted(true) },
@@ -186,7 +192,15 @@ export default function TappingGame() {
           <Card className="animate-score-pop">
             <CardContent className="p-6 text-center">
               <CheckCircle className="w-10 h-10 text-success mx-auto mb-2" />
-              <p className="font-semibold">Score saved: {score}%</p>
+              <p className="font-semibold">
+                {isDemoMode ? "Demo complete!" : `Score saved: ${score}%`}
+              </p>
+              {isDemoMode && (
+                <p className="text-xs text-muted-foreground mt-1 italic">
+                  In demo mode, scores are not saved. Sign in to track your
+                  progress.
+                </p>
+              )}
               <Button
                 onClick={() => navigate({ to: "/motor" })}
                 className="mt-4 gradient-primary text-white border-0"

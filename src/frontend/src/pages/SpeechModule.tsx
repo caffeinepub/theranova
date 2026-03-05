@@ -13,17 +13,19 @@ import {
 import React from "react";
 import { useEffect } from "react";
 import ApprovalGate from "../components/ApprovalGate";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useFetchSpeechExercises } from "../hooks/useQueries";
 
 export default function SpeechModule() {
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
   const { data: exercises, isLoading } = useFetchSpeechExercises();
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   return (
     <ApprovalGate>

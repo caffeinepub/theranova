@@ -12,6 +12,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ApprovalGate from "../components/ApprovalGate";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSubmitSession } from "../hooks/useQueries";
 
@@ -50,17 +51,17 @@ function drawScene(
   reachedIdx: number,
   active: boolean,
 ) {
-  // Background
+  // Background — clinical white with a soft blue tint
   ctx.clearRect(0, 0, width, height);
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#f0fdf4");
-  bg.addColorStop(1, "#e0f2fe");
+  bg.addColorStop(0, "#f0f5ff");
+  bg.addColorStop(1, "#e8f0fe");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
   if (path.length < 2) return;
 
-  // Draw path segments — completed in teal, remaining in grey
+  // Draw path segments — completed in medical blue, remaining in soft grey
   for (let i = 0; i < path.length - 1; i++) {
     const a = path[i];
     const b = path[i + 1];
@@ -68,7 +69,7 @@ function drawScene(
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.lineWidth = 4;
-    ctx.strokeStyle = i < reachedIdx ? "#0d9488" : "#cbd5e1";
+    ctx.strokeStyle = i < reachedIdx ? "#3b6fd4" : "#c8d3e8";
     ctx.lineCap = "round";
     ctx.stroke();
   }
@@ -83,7 +84,7 @@ function drawScene(
     if (!reached && active) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
-      ctx.fillStyle = isEnd ? "rgba(239,68,68,0.15)" : "rgba(13,148,136,0.12)";
+      ctx.fillStyle = isEnd ? "rgba(239,68,68,0.15)" : "rgba(59,111,212,0.12)";
       ctx.fill();
     }
 
@@ -94,7 +95,7 @@ function drawScene(
     } else if (isEnd) {
       ctx.fillStyle = reached ? "#22c55e" : "#ef4444";
     } else {
-      ctx.fillStyle = reached ? "#0d9488" : "#94a3b8";
+      ctx.fillStyle = reached ? "#3b6fd4" : "#94a3b8";
     }
     ctx.fill();
 
@@ -107,7 +108,7 @@ function drawScene(
 
     // Label start/end
     if (isStart || isEnd) {
-      ctx.font = "bold 11px Inter, sans-serif";
+      ctx.font = "bold 11px system-ui, sans-serif";
       ctx.fillStyle = "#1e293b";
       ctx.textAlign = "center";
       ctx.fillText(isStart ? "START" : "END", p.x, p.y - 18);
@@ -116,7 +117,7 @@ function drawScene(
 
   // Draw cursor
   if (cursorPos && active) {
-    // Outer ring
+    // Outer ring — medical amber accent for the cursor
     ctx.beginPath();
     ctx.arc(cursorPos.x, cursorPos.y, 18, 0, Math.PI * 2);
     ctx.strokeStyle = "rgba(245,158,11,0.4)";
@@ -138,6 +139,7 @@ function drawScene(
 export default function PathTracingGame() {
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
   const { mutate: submitSession, isPending: isSubmitting } = useSubmitSession();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -157,8 +159,8 @@ export default function PathTracingGame() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   // Rebuild path when canvas size is known
   const initPath = useCallback(() => {
@@ -302,6 +304,10 @@ export default function PathTracingGame() {
       : progress;
 
   const handleSubmit = () => {
+    if (isDemoMode) {
+      setSubmitted(true);
+      return;
+    }
     submitSession(
       { task: { __kind__: "motorTask", motorTask: "Path Tracing" }, score },
       { onSuccess: () => setSubmitted(true) },
@@ -439,7 +445,15 @@ export default function PathTracingGame() {
           <Card>
             <CardContent className="p-6 text-center">
               <CheckCircle className="w-10 h-10 text-success mx-auto mb-2" />
-              <p className="font-semibold">Score saved: {score} points</p>
+              <p className="font-semibold">
+                {isDemoMode ? "Demo complete!" : `Score saved: ${score} points`}
+              </p>
+              {isDemoMode && (
+                <p className="text-xs text-muted-foreground mt-1 italic">
+                  In demo mode, scores are not saved. Sign in to track your
+                  progress.
+                </p>
+              )}
               <Button
                 onClick={() => navigate({ to: "/motor" })}
                 className="mt-4 gradient-primary text-white border-0"

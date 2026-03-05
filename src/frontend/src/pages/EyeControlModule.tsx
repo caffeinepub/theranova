@@ -23,11 +23,13 @@ import {
 import React, { useState, useCallback } from "react";
 import { useEffect } from "react";
 import VirtualKeyboard from "../components/VirtualKeyboard";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 export default function EyeControlModule() {
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
 
   const [dwellEnabled, setDwellEnabled] = useState(false);
   const [dwellTime, setDwellTime] = useState(1500); // ms
@@ -36,8 +38,8 @@ export default function EyeControlModule() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   const handleKey = useCallback((key: string) => {
     if (key === "BACK") {

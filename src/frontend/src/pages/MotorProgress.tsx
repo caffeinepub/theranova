@@ -22,17 +22,19 @@ import {
   YAxis,
 } from "recharts";
 import ApprovalGate from "../components/ApprovalGate";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useFetchCallerPlan } from "../hooks/useQueries";
 
 export default function MotorProgress() {
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
   const { data: plan, isLoading } = useFetchCallerPlan();
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   const motorSessions =
     plan?.sessions?.filter((s) => s.task.__kind__ === "motorTask") ?? [];

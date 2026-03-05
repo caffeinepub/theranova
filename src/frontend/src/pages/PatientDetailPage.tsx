@@ -36,6 +36,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddTherapistFeedback,
@@ -73,6 +74,7 @@ export default function PatientDetailPage() {
     from: "/auth/therapist/patient/$patientId",
   });
   const { identity } = useInternetIdentity();
+  const { isDemoMode } = useDemo();
   const { data: isAdmin } = useIsCallerAdmin();
 
   const patientPrincipal = React.useMemo(() => {
@@ -98,8 +100,8 @@ export default function PatientDetailPage() {
   const [videoUrl, setVideoUrl] = useState("https://meet.google.com/");
 
   useEffect(() => {
-    if (!identity) navigate({ to: "/" });
-  }, [identity, navigate]);
+    if (!identity && !isDemoMode) navigate({ to: "/" });
+  }, [identity, isDemoMode, navigate]);
 
   useEffect(() => {
     if (plan?.recoveryTrend) setTrendValue(plan.recoveryTrend);

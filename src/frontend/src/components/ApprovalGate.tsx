@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, Clock, Loader2, ShieldAlert } from "lucide-react";
 import type React from "react";
+import { useDemo } from "../contexts/DemoContext";
 import { useIsCallerApproved, useRequestApproval } from "../hooks/useQueries";
 
 interface ApprovalGateProps {
@@ -15,12 +16,18 @@ interface ApprovalGateProps {
 }
 
 export default function ApprovalGate({ children }: ApprovalGateProps) {
+  const { isDemoMode } = useDemo();
   const { data: isApproved, isLoading } = useIsCallerApproved();
   const {
     mutate: requestApproval,
     isPending,
     isSuccess,
   } = useRequestApproval();
+
+  // In demo mode, bypass approval entirely
+  if (isDemoMode) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
