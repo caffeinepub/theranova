@@ -33,6 +33,7 @@ import { AnimatePresence, motion } from "motion/react";
 import React, { useEffect, useState } from "react";
 import ProfileSetupModal from "../components/ProfileSetupModal";
 import { useDemo } from "../contexts/DemoContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useFetchCallerPlan,
@@ -44,9 +45,9 @@ import type { Category } from "./RecoveryTipsPage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const moduleCards = [
+const moduleCardsConfig = [
   {
-    title: "Speech Therapy",
+    titleKey: "module.speech",
     description: "Voice recognition exercises and AI pronunciation scoring",
     icon: "/assets/generated/icon-speech-transparent.dim_128x128.png",
     fallbackIcon: Mic,
@@ -60,7 +61,7 @@ const moduleCards = [
     ocid: "dashboard.speech.card",
   },
   {
-    title: "Motor Skills",
+    titleKey: "module.motor",
     description: "Gamified hand and finger coordination exercises",
     icon: "/assets/generated/icon-motor-transparent.dim_128x128.png",
     fallbackIcon: Gamepad2,
@@ -74,7 +75,7 @@ const moduleCards = [
     ocid: "dashboard.motor.card",
   },
   {
-    title: "Eye Control",
+    titleKey: "module.eye",
     description: "Hands-free dwell-to-click interaction system",
     icon: "/assets/generated/icon-eye-transparent.dim_128x128.png",
     fallbackIcon: Eye,
@@ -88,7 +89,7 @@ const moduleCards = [
     ocid: "dashboard.eye_control.card",
   },
   {
-    title: "Tele-Rehabilitation",
+    titleKey: "module.telerehab",
     description: "Connect with your therapist remotely",
     icon: "/assets/generated/icon-telemed-transparent.dim_128x128.png",
     fallbackIcon: Video,
@@ -612,6 +613,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { identity } = useInternetIdentity();
   const { isDemoMode, demoUser } = useDemo();
+  const { t } = useLanguage();
   const {
     data: userProfile,
     isLoading: profileLoading,
@@ -662,8 +664,8 @@ export default function Dashboard() {
         ) : (
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-display text-3xl font-bold text-foreground">
-              Welcome back, <span className="text-gradient">{displayName}</span>{" "}
-              👋
+              {t("greeting.welcome")},{" "}
+              <span className="text-gradient">{displayName}</span> 👋
             </h1>
             {/* Milestone badge */}
             <span
@@ -720,10 +722,10 @@ export default function Dashboard() {
           Therapy Modules
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {moduleCards.map(
+          {moduleCardsConfig.map(
             (
               {
-                title,
+                titleKey,
                 description,
                 icon,
                 fallbackIcon: _FallbackIcon,
@@ -772,7 +774,7 @@ export default function Dashboard() {
                       >
                         <img
                           src={icon}
-                          alt={title}
+                          alt={t(titleKey)}
                           className="w-8 h-8 object-contain"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
@@ -787,7 +789,7 @@ export default function Dashboard() {
                       </span>
                     </div>
                     <h3 className="font-display font-semibold text-foreground mb-1.5 text-base">
-                      {title}
+                      {t(titleKey)}
                     </h3>
                     <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                       {description}
@@ -795,7 +797,7 @@ export default function Dashboard() {
                     <div
                       className={`flex items-center ${iconColor} text-sm font-bold group-hover:gap-2 transition-all`}
                     >
-                      Start <ArrowRight className="w-4 h-4 ml-1" />
+                      {t("btn.start")} <ArrowRight className="w-4 h-4 ml-1" />
                     </div>
                   </CardContent>
                 </Card>

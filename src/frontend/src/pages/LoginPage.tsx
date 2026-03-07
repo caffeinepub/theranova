@@ -17,13 +17,15 @@ import {
 import { motion } from "motion/react";
 import type { Variants } from "motion/react";
 import React, { useEffect } from "react";
+import LanguageSelector from "../components/LanguageSelector";
 import { useDemo } from "../contexts/DemoContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
-const features = [
+const featureCards = [
   {
     icon: Mic,
-    label: "Speech Therapy",
+    labelKey: "module.speech",
     desc: "AI-powered pronunciation training and voice recognition exercises",
     borderColor: "border-chart-1",
     iconBg: "bg-chart-1/15",
@@ -32,7 +34,7 @@ const features = [
   },
   {
     icon: Gamepad2,
-    label: "Motor Skills",
+    labelKey: "module.motor",
     desc: "Gamified hand and finger coordination rehabilitation games",
     borderColor: "border-chart-2",
     iconBg: "bg-chart-2/15",
@@ -41,7 +43,7 @@ const features = [
   },
   {
     icon: Eye,
-    label: "Eye Control",
+    labelKey: "module.eye",
     desc: "Hands-free dwell-to-click interaction for full accessibility",
     borderColor: "border-chart-3",
     iconBg: "bg-chart-3/15",
@@ -50,7 +52,7 @@ const features = [
   },
   {
     icon: Video,
-    label: "Tele-Rehab",
+    labelKey: "module.telerehab",
     desc: "Remote monitoring and live sessions with your therapist",
     borderColor: "border-chart-4",
     iconBg: "bg-chart-4/15",
@@ -87,6 +89,7 @@ export default function LoginPage() {
   const { login, loginStatus, identity, isInitializing } =
     useInternetIdentity();
   const { enterDemoMode } = useDemo();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (identity) {
@@ -160,10 +163,14 @@ export default function LoginPage() {
               TheraNova
             </span>
           </div>
-          <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <Activity className="w-3.5 h-3.5 text-success" />
-            <span className="hidden sm:inline">System Online</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <div className="ml-auto flex items-center gap-3">
+            {/* Language selector */}
+            <LanguageSelector />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Activity className="w-3.5 h-3.5 text-success" />
+              <span className="hidden sm:inline">System Online</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            </div>
           </div>
         </div>
       </header>
@@ -208,10 +215,10 @@ export default function LoginPage() {
                 variants={stagger}
                 className="grid sm:grid-cols-2 gap-3"
               >
-                {features.map(
+                {featureCards.map(
                   ({
                     icon: Icon,
-                    label,
+                    labelKey,
                     desc,
                     borderColor,
                     iconBg,
@@ -219,9 +226,10 @@ export default function LoginPage() {
                     glowColor,
                   }) => (
                     <motion.div
-                      key={label}
+                      key={labelKey}
                       variants={fadeUp}
-                      className={`group flex items-start gap-3.5 p-4 rounded-2xl bg-card border ${borderColor}/30 hover:${borderColor}/60 ${glowColor} card-hover transition-all duration-300`}
+                      whileHover={{ scale: 1.02 }}
+                      className={`group flex items-start gap-3.5 p-4 rounded-2xl bg-card border ${borderColor}/30 hover:${borderColor}/60 ${glowColor} transition-all duration-300`}
                     >
                       <div
                         className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 duration-300`}
@@ -230,7 +238,7 @@ export default function LoginPage() {
                       </div>
                       <div>
                         <p className="font-display font-semibold text-sm text-foreground mb-0.5">
-                          {label}
+                          {t(labelKey)}
                         </p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           {desc}
@@ -241,10 +249,34 @@ export default function LoginPage() {
                 )}
               </motion.div>
 
+              {/* Social proof — India languages */}
+              <motion.div
+                variants={fadeUp}
+                className="mt-6 flex items-center gap-3 flex-wrap"
+              >
+                <div
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border border-primary/20"
+                  style={{ background: "oklch(0.72 0.17 185 / 0.06)" }}
+                >
+                  <span className="text-xl leading-none">🇮🇳</span>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground leading-tight">
+                      Trusted across India
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-tight">
+                      Available in 13 Indian languages
+                    </p>
+                  </div>
+                  <span className="ml-1 text-xs font-bold text-primary bg-primary/12 border border-primary/25 px-2 py-0.5 rounded-full">
+                    13 langs
+                  </span>
+                </div>
+              </motion.div>
+
               {/* Trust badges */}
               <motion.div
                 variants={fadeUp}
-                className="mt-8 flex flex-wrap gap-5"
+                className="mt-5 flex flex-wrap gap-5"
               >
                 {[
                   { tag: "AI-Powered", icon: Sparkles, color: "text-primary" },
@@ -323,7 +355,7 @@ export default function LoginPage() {
                     ) : (
                       <>
                         <ShieldCheck className="w-4 h-4 mr-2" />
-                        Sign In with Internet Identity
+                        {t("btn.signin")} with Internet Identity
                       </>
                     )}
                   </Button>
@@ -357,7 +389,7 @@ export default function LoginPage() {
                     }}
                   >
                     <Sparkles className="w-4 h-4" />
-                    Try Demo — No Login Required
+                    {t("btn.demo")} — No Login Required
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                   <p className="text-center text-xs text-muted-foreground mt-2">

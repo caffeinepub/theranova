@@ -1,196 +1,106 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  CheckCircle,
-  Loader2,
-  Mic,
-  MicOff,
-  RefreshCw,
-  Volume2,
-} from "lucide-react";
-import React, { useState, useRef, useEffect } from "react";
-import ApprovalGate from "../components/ApprovalGate";
+import { ArrowLeft, CheckCircle2, Mic, MicOff, Volume2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useDemo } from "../contexts/DemoContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useFetchSpeechExercises, useSubmitSession } from "../hooks/useQueries";
+import { useFetchSpeechExercises } from "../hooks/useQueries";
 
-// ── Speech Recognition type shim ─────────────────────────────────────────────
-// The Web Speech API is not in the default TypeScript lib, so we define a
-// minimal interface here to avoid "Cannot find name 'SpeechRecognition'" errors.
-
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  readonly length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-  readonly isFinal: boolean;
-}
-
-interface SpeechRecognitionAlternative {
-  readonly transcript: string;
-  readonly confidence: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-  readonly message: string;
-}
-
-interface ISpeechRecognition extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-interface ISpeechRecognitionConstructor {
-  new (): ISpeechRecognition;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: ISpeechRecognitionConstructor | undefined;
-    webkitSpeechRecognition: ISpeechRecognitionConstructor | undefined;
-  }
-}
-
-// ── Pronunciation scoring ─────────────────────────────────────────────────────
-
-function computeSimilarity(target: string, spoken: string): number {
-  const t = target
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
-    .trim();
-  const s = spoken
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
-    .trim();
-  if (!s) return 0;
-
-  const tWords = t.split(/\s+/);
-  const sWords = s.split(/\s+/);
-
-  let matches = 0;
-  const usedIndices = new Set<number>();
-
-  for (const tw of tWords) {
-    for (let i = 0; i < sWords.length; i++) {
-      if (
-        !usedIndices.has(i) &&
-        levenshtein(tw, sWords[i]) <= Math.floor(tw.length * 0.3)
-      ) {
-        matches++;
-        usedIndices.add(i);
-        break;
-      }
-    }
-  }
-
-  return Math.round((matches / Math.max(tWords.length, 1)) * 100);
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
-  );
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[m][n];
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
+// ─── SpeechExercise Page ──────────────────────────────────────────────────────
 
 export default function SpeechExercise() {
   const navigate = useNavigate();
-  const { exerciseIndex } = useParams({
-    from: "/auth/speech/exercise/$exerciseIndex",
-  });
   const { identity } = useInternetIdentity();
   const { isDemoMode } = useDemo();
+  const { exerciseIndex } = useParams({ strict: false }) as {
+    exerciseIndex: string;
+  };
+  const idx = Number.parseInt(exerciseIndex ?? "0", 10);
+
   const { data: exercises } = useFetchSpeechExercises();
-  const { mutate: submitSession, isPending: isSubmitting } = useSubmitSession();
+  const exercise = exercises?.[idx] ?? "Say: Hello, my name is...";
 
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [score, setScore] = useState<number | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const idx = Number.parseInt(exerciseIndex ?? "0", 10);
-  const exercise = exercises?.[idx] ?? "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (!identity && !isDemoMode) navigate({ to: "/" });
   }, [identity, isDemoMode, navigate]);
 
+  const handleSpeak = () => {
+    if (!exercise) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const utt = new SpeechSynthesisUtterance(exercise);
+    utt.lang = "en-US";
+    utt.rate = 0.85;
+    utt.onstart = () => setIsSpeaking(true);
+    utt.onend = () => setIsSpeaking(false);
+    utt.onerror = () => setIsSpeaking(false);
+    synth.speak(utt);
+  };
+
+  const calcScore = (spoken: string, target: string): number => {
+    const spokenWords = spoken.toLowerCase().trim().split(/\s+/);
+    const targetWords = target.toLowerCase().trim().split(/\s+/);
+    if (!targetWords.length) return 0;
+    let matches = 0;
+    for (const w of spokenWords) {
+      if (targetWords.includes(w)) matches++;
+    }
+    return Math.min(100, Math.round((matches / targetWords.length) * 100));
+  };
+
+  const buildFeedback = (s: number): string => {
+    if (s >= 90)
+      return "Excellent! Your pronunciation is very clear. Keep it up!";
+    if (s >= 70)
+      return "Good job! Try to pronounce each word a bit more clearly.";
+    if (s >= 50)
+      return "Getting there! Speak slower and focus on each syllable.";
+    return "Keep practicing! Try listening to the example first, then repeat.";
+  };
+
   const startRecording = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SpeechRecognitionAPI =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
-      setError(
-        "Speech recognition is not supported in your browser. Please use Chrome or Edge.",
-      );
+      setTranscript("Speech recognition not supported in this browser.");
       return;
     }
-
-    setError("");
+    const rec = new SpeechRecognitionAPI();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      const spoken = e.results[0][0].transcript;
+      setTranscript(spoken);
+      const s = calcScore(spoken, exercise);
+      setScore(s);
+      setFeedback(buildFeedback(s));
+    };
+    rec.onerror = () => {
+      setIsRecording(false);
+      setTranscript("Could not capture audio. Please try again.");
+    };
+    rec.onend = () => setIsRecording(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setIsRecording(true);
     setTranscript("");
     setScore(null);
-    setSubmitted(false);
-
-    const recognition = new SpeechRecognitionAPI();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const result = event.results[0][0].transcript;
-      setTranscript(result);
-      const computed = computeSimilarity(exercise, result);
-      setScore(computed);
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      setError(`Recognition error: ${event.error}. Please try again.`);
-      setIsRecording(false);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsRecording(true);
+    setFeedback("");
   };
 
   const stopRecording = () => {
@@ -198,205 +108,179 @@ export default function SpeechExercise() {
     setIsRecording(false);
   };
 
-  const handleSubmit = () => {
-    if (score === null) return;
-    if (isDemoMode) {
-      setSubmitted(true);
-      return;
-    }
-    submitSession(
-      {
-        task: { __kind__: "speechTask", speechTask: exercise },
-        score,
-      },
-      {
-        onSuccess: () => setSubmitted(true),
-      },
-    );
-  };
-
-  const handleRetry = () => {
-    setTranscript("");
-    setScore(null);
-    setSubmitted(false);
-    setError("");
-  };
+  const level = idx < 2 ? "Beginner" : idx < 4 ? "Intermediate" : "Advanced";
 
   const scoreColor =
     score === null
-      ? ""
+      ? "text-muted-foreground"
       : score >= 70
-        ? "text-success"
-        : score >= 40
-          ? "text-warning"
+        ? "text-chart-2"
+        : score >= 50
+          ? "text-chart-4"
           : "text-destructive";
 
   return (
-    <ApprovalGate>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
         <Button
           variant="ghost"
+          size="sm"
           onClick={() => navigate({ to: "/speech" })}
-          className="mb-6 -ml-2"
+          className="flex items-center gap-1.5"
+          data-ocid="speech_exercise.back_button"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Exercises
+          <ArrowLeft className="w-4 h-4" />
+          Back
         </Button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-display font-bold text-primary">
-            {idx + 1}
-          </div>
-          <div>
-            <h1 className="font-display text-xl font-bold text-foreground">
-              Speech Exercise
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Read the prompt aloud clearly
-            </p>
-          </div>
+        <div>
+          <h1 className="font-display text-xl font-bold text-foreground">
+            Exercise {idx + 1}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Speech Therapy Practice
+          </p>
         </div>
+        <Badge variant="secondary" className="ml-auto text-xs">
+          {level}
+        </Badge>
+      </div>
 
-        {/* Exercise Prompt */}
-        <Card className="mb-6 border-primary/20 bg-primary/5">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-3">
-              <Volume2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <p className="text-lg font-medium text-foreground leading-relaxed">
-                {exercise}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Exercise Prompt */}
+      <Card className="mb-5">
+        <CardHeader className="pb-2">
+          <CardTitle className="font-display text-base flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-primary" />
+            Read This Aloud
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p
+            className="text-xl font-semibold text-foreground leading-relaxed mb-4 font-display"
+            data-ocid="speech_exercise.panel"
+          >
+            {exercise}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSpeak}
+            disabled={isSpeaking}
+            className="flex items-center gap-2"
+            data-ocid="speech_exercise.secondary_button"
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            {isSpeaking ? "Playing..." : "Hear Example"}
+          </Button>
+        </CardContent>
+      </Card>
 
-        {/* Recording Controls */}
-        {!submitted && (
-          <div className="text-center space-y-4">
+      {/* Recording Control */}
+      <Card className="mb-5">
+        <CardContent className="pt-5">
+          <div className="flex flex-col items-center gap-4">
             <button
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
-              className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto transition-all ${
+              data-ocid={
                 isRecording
-                  ? "bg-destructive text-white animate-pulse-ring"
-                  : "gradient-primary text-white hover:opacity-90"
+                  ? "speech_exercise.secondary_button"
+                  : "speech_exercise.primary_button"
+              }
+              className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 ${
+                isRecording
+                  ? "bg-destructive/15 border-2 border-destructive animate-pulse"
+                  : "bg-primary/10 border-2 border-primary hover:bg-primary/20"
               }`}
             >
               {isRecording ? (
-                <MicOff className="w-10 h-10" />
+                <MicOff className="w-8 h-8 text-destructive" />
               ) : (
-                <Mic className="w-10 h-10" />
+                <Mic className="w-8 h-8 text-primary" />
               )}
             </button>
             <p className="text-sm text-muted-foreground">
               {isRecording
-                ? "Recording... Click to stop"
-                : "Click to start recording"}
+                ? "Recording… click to stop"
+                : "Click the mic to start speaking"}
             </p>
-
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">
-                {error}
-              </p>
-            )}
           </div>
-        )}
 
-        {/* Transcript */}
-        {transcript && (
-          <Card className="mt-6">
-            <CardContent className="p-4">
+          {/* Transcript */}
+          {transcript && (
+            <div
+              className="mt-4 p-3 rounded-lg bg-accent/30 border border-border"
+              data-ocid="speech_exercise.success_state"
+            >
               <p className="text-xs text-muted-foreground mb-1 font-medium uppercase tracking-wide">
-                What we heard:
+                You said
               </p>
-              <p className="text-foreground italic">"{transcript}"</p>
-            </CardContent>
-          </Card>
-        )}
+              <p className="text-sm text-foreground font-medium italic">
+                "{transcript}"
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Score Display */}
-        {score !== null && !submitted && (
-          <div className="mt-6 text-center animate-score-pop">
-            <div className="inline-flex flex-col items-center p-6 rounded-2xl bg-card border border-border shadow-card">
-              <p className="text-sm text-muted-foreground mb-2">
-                Pronunciation Score
-              </p>
-              <p className={`text-6xl font-display font-bold ${scoreColor}`}>
+      {/* Score */}
+      {score !== null && (
+        <Card className="mb-5 animate-fade-in" data-ocid="speech_exercise.card">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-chart-2" />
+              Pronunciation Score
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-end gap-2">
+              <span className={`text-4xl font-bold font-display ${scoreColor}`}>
                 {score}%
-              </p>
-              <Progress value={score} className="w-48 mt-3 h-2" />
-              <Badge
-                variant={
-                  score >= 70
-                    ? "default"
-                    : score >= 40
-                      ? "secondary"
-                      : "destructive"
-                }
-                className="mt-3"
-              >
-                {score >= 70
-                  ? "Excellent!"
-                  : score >= 40
-                    ? "Good effort"
-                    : "Keep practicing"}
-              </Badge>
+              </span>
+              <span className="text-sm text-muted-foreground mb-1">
+                {score >= 90
+                  ? "Excellent"
+                  : score >= 70
+                    ? "Good"
+                    : score >= 50
+                      ? "Fair"
+                      : "Keep Practicing"}
+              </span>
             </div>
-
-            <div className="flex gap-3 justify-center mt-6">
+            <Progress value={score} className="h-2" />
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {feedback}
+            </p>
+            <div className="flex gap-2 pt-1">
               <Button
+                size="sm"
+                onClick={() => {
+                  setScore(null);
+                  setTranscript("");
+                  setFeedback("");
+                }}
                 variant="outline"
-                onClick={handleRetry}
-                className="flex items-center gap-2"
+                className="flex-1"
+                data-ocid="speech_exercise.secondary_button"
               >
-                <RefreshCw className="w-4 h-4" /> Try Again
+                Try Again
               </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="gradient-primary text-white border-0 flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4" />
-                )}
-                Save Result
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Submitted State */}
-        {submitted && (
-          <div className="mt-6 text-center animate-score-pop">
-            <div className="p-6 rounded-2xl bg-success/10 border border-success/20">
-              <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
-              <p className="font-display font-bold text-lg text-foreground">
-                {isDemoMode ? "Exercise Complete!" : "Result Saved!"}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Score: {score}%
-              </p>
-              {isDemoMode && (
-                <p className="text-xs text-muted-foreground mt-2 italic">
-                  In demo mode, scores are not saved. Sign in to track your
-                  progress.
-                </p>
+              {idx + 1 < (exercises?.length ?? 0) && (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    navigate({ to: `/speech/exercise/${idx + 1}` })
+                  }
+                  className="flex-1 gradient-primary text-white border-0"
+                  data-ocid="speech_exercise.primary_button"
+                >
+                  Next Exercise
+                </Button>
               )}
             </div>
-            <div className="flex gap-3 justify-center mt-4">
-              <Button variant="outline" onClick={handleRetry}>
-                <RefreshCw className="w-4 h-4 mr-2" /> Practice Again
-              </Button>
-              <Button
-                onClick={() => navigate({ to: "/speech" })}
-                className="gradient-primary text-white border-0"
-              >
-                Next Exercise <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </ApprovalGate>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

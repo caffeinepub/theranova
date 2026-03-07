@@ -28,42 +28,37 @@ import {
 import type React from "react";
 import { useState } from "react";
 import { useDemo } from "../contexts/DemoContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "../hooks/useQueries";
 import { useIsCallerAdmin } from "../hooks/useQueries";
+import LanguageSelector from "./LanguageSelector";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-const navItems = [
+const moduleNavItems = [
   {
-    label: "Dashboard",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-    ocid: "nav.dashboard_link",
+    labelKey: "module.speech",
+    path: "/speech",
+    icon: Mic,
+    ocid: "nav.speech_link",
   },
   {
-    label: "Tips",
-    path: "/tips",
-    icon: Lightbulb,
-    ocid: "nav.tips_link",
-  },
-  { label: "Speech", path: "/speech", icon: Mic, ocid: "nav.speech_link" },
-  {
-    label: "Motor Skills",
+    labelKey: "module.motor",
     path: "/motor",
     icon: Gamepad2,
     ocid: "nav.motor_link",
   },
   {
-    label: "Eye Control",
+    labelKey: "module.eye",
     path: "/eye-control",
     icon: Eye,
     ocid: "nav.eye_control_link",
   },
   {
-    label: "Tele-Rehab",
+    labelKey: "module.telerehab",
     path: "/therapist",
     icon: Video,
     ocid: "nav.telerehab_link",
@@ -78,7 +73,9 @@ export default function Layout({ children }: LayoutProps) {
   const { data: userProfile } = useGetCallerUserProfile();
   const { data: isAdmin } = useIsCallerAdmin();
   const { isDemoMode, demoUser, exitDemoMode } = useDemo();
+  const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [modulesOpen, setModulesOpen] = useState(false);
 
   const handleLogout = async () => {
     await clear();
@@ -92,7 +89,6 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const displayName = isDemoMode ? demoUser.name : userProfile?.name || "User";
-
   const displayRole = isDemoMode
     ? demoUser.role
     : userProfile?.role || "patient";
@@ -107,13 +103,14 @@ export default function Layout({ children }: LayoutProps) {
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(`${path}/`);
 
-  // In demo mode show all nav items; otherwise show admin-only items only when admin
-  const visibleNavItems = navItems.filter((item) => {
+  const visibleModules = moduleNavItems.filter((item) => {
     if (item.path === "/therapist") {
       return isDemoMode || isAdmin;
     }
     return true;
   });
+
+  const isModuleActive = visibleModules.some((m) => isActive(m.path));
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -156,13 +153,13 @@ export default function Layout({ children }: LayoutProps) {
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 gap-2">
             {/* Logo */}
             <button
               type="button"
               data-ocid="nav.logo_link"
               onClick={() => navigate({ to: "/dashboard" })}
-              className="flex items-center gap-2.5 group"
+              className="flex items-center gap-2.5 group flex-shrink-0"
             >
               <div
                 className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center transition-all group-hover:teal-glow"
@@ -178,22 +175,84 @@ export default function Layout({ children }: LayoutProps) {
             </button>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-0.5">
-              {visibleNavItems.map(({ label, path, icon: Icon, ocid }) => {
-                const active = isActive(path);
-                return (
+            <nav className="hidden md:flex items-center gap-0.5 flex-1 justify-center">
+              {/* Dashboard */}
+              <button
+                data-ocid="nav.dashboard_link"
+                type="button"
+                onClick={() => navigate({ to: "/dashboard" })}
+                className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-touch ${
+                  isActive("/dashboard")
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                style={
+                  isActive("/dashboard")
+                    ? {
+                        background: "oklch(0.72 0.17 185 / 0.1)",
+                        boxShadow:
+                          "inset 0 0 0 1px oklch(0.72 0.17 185 / 0.25), 0 0 12px oklch(0.72 0.17 185 / 0.08)",
+                      }
+                    : undefined
+                }
+              >
+                {isActive("/dashboard") && (
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r-full bg-primary"
+                    style={{ boxShadow: "0 0 6px oklch(0.72 0.17 185 / 0.8)" }}
+                  />
+                )}
+                <LayoutDashboard
+                  className={`w-4 h-4 ${isActive("/dashboard") ? "text-primary" : ""}`}
+                />
+                {t("nav.dashboard")}
+              </button>
+
+              {/* Recovery Tips */}
+              <button
+                data-ocid="nav.tips_link"
+                type="button"
+                onClick={() => navigate({ to: "/tips" })}
+                className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-touch ${
+                  isActive("/tips")
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                style={
+                  isActive("/tips")
+                    ? {
+                        background: "oklch(0.72 0.17 185 / 0.1)",
+                        boxShadow:
+                          "inset 0 0 0 1px oklch(0.72 0.17 185 / 0.25), 0 0 12px oklch(0.72 0.17 185 / 0.08)",
+                      }
+                    : undefined
+                }
+              >
+                {isActive("/tips") && (
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r-full bg-primary"
+                    style={{ boxShadow: "0 0 6px oklch(0.72 0.17 185 / 0.8)" }}
+                  />
+                )}
+                <Lightbulb
+                  className={`w-4 h-4 ${isActive("/tips") ? "text-primary" : ""}`}
+                />
+                {t("nav.tips")}
+              </button>
+
+              {/* Modules Dropdown */}
+              <DropdownMenu open={modulesOpen} onOpenChange={setModulesOpen}>
+                <DropdownMenuTrigger asChild>
                   <button
-                    data-ocid={ocid}
                     type="button"
-                    key={path}
-                    onClick={() => navigate({ to: path })}
+                    data-ocid="nav.modules_dropdown"
                     className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-touch ${
-                      active
+                      isModuleActive
                         ? "text-primary font-semibold"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                     style={
-                      active
+                      isModuleActive
                         ? {
                             background: "oklch(0.72 0.17 185 / 0.1)",
                             boxShadow:
@@ -202,8 +261,7 @@ export default function Layout({ children }: LayoutProps) {
                         : undefined
                     }
                   >
-                    {/* Active left indicator */}
-                    {active && (
+                    {isModuleActive && (
                       <span
                         className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r-full bg-primary"
                         style={{
@@ -211,24 +269,79 @@ export default function Layout({ children }: LayoutProps) {
                         }}
                       />
                     )}
-                    <Icon
-                      className={`w-4 h-4 ${active ? "text-primary" : ""}`}
+                    {t("nav.modules")}
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform duration-200 ${modulesOpen ? "rotate-180" : ""}`}
                     />
-                    {label}
                   </button>
-                );
-              })}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="center"
+                  sideOffset={8}
+                  className="w-56 rounded-2xl border-border/60 p-2"
+                  style={{
+                    background: "oklch(0.13 0.025 248)",
+                    boxShadow:
+                      "0 8px 40px oklch(0 0 0 / 0.5), 0 0 0 1px oklch(0.28 0.03 245 / 0.6)",
+                  }}
+                >
+                  {visibleModules.map(
+                    ({ labelKey, path, icon: Icon, ocid }) => {
+                      const active = isActive(path);
+                      return (
+                        <DropdownMenuItem
+                          key={path}
+                          data-ocid={ocid}
+                          onClick={() => {
+                            navigate({ to: path });
+                            setModulesOpen(false);
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
+                            active
+                              ? "text-primary font-semibold"
+                              : "text-foreground/80 hover:text-foreground"
+                          }`}
+                          style={
+                            active
+                              ? {
+                                  background: "oklch(0.72 0.17 185 / 0.1)",
+                                  boxShadow:
+                                    "inset 0 0 0 1px oklch(0.72 0.17 185 / 0.2)",
+                                }
+                              : undefined
+                          }
+                        >
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              active ? "bg-primary/15" : "bg-muted/60"
+                            }`}
+                          >
+                            <Icon
+                              className={`w-3.5 h-3.5 ${active ? "text-primary" : "text-muted-foreground"}`}
+                            />
+                          </div>
+                          <span className="text-sm">{t(labelKey)}</span>
+                        </DropdownMenuItem>
+                      );
+                    },
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
 
-            {/* User Menu */}
-            <div className="flex items-center gap-2">
+            {/* Right: Language Selector + User Menu */}
+            <div className="flex items-center gap-1.5">
               {/* Online indicator */}
-              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground mr-1">
+              <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground mr-1">
                 <Zap className="w-3 h-3 text-primary" />
-                <span className="hidden lg:inline">AI Active</span>
+                <span>AI Active</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
               </div>
 
+              {/* Language Selector */}
+              <LanguageSelector />
+
+              {/* User Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -247,7 +360,7 @@ export default function Layout({ children }: LayoutProps) {
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden sm:block text-sm font-medium max-w-28 truncate">
+                    <span className="hidden sm:block text-sm font-medium max-w-24 truncate">
                       {displayName}
                     </span>
                     <ChevronDown className="w-3 h-3 text-muted-foreground" />
@@ -320,7 +433,70 @@ export default function Layout({ children }: LayoutProps) {
             className="md:hidden border-t border-border/40 px-4 py-3 space-y-1"
             style={{ background: "oklch(0.11 0.022 248)" }}
           >
-            {visibleNavItems.map(({ label, path, icon: Icon, ocid }) => {
+            {/* Dashboard */}
+            <button
+              data-ocid="nav.dashboard_link"
+              type="button"
+              onClick={() => {
+                navigate({ to: "/dashboard" });
+                setMobileOpen(false);
+              }}
+              className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all min-touch ${
+                isActive("/dashboard")
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+              style={
+                isActive("/dashboard")
+                  ? {
+                      background: "oklch(0.72 0.17 185 / 0.1)",
+                      boxShadow: "inset 0 0 0 1px oklch(0.72 0.17 185 / 0.25)",
+                    }
+                  : undefined
+              }
+            >
+              <LayoutDashboard
+                className={`w-4 h-4 ${isActive("/dashboard") ? "text-primary" : ""}`}
+              />
+              {t("nav.dashboard")}
+            </button>
+
+            {/* Tips */}
+            <button
+              data-ocid="nav.tips_link"
+              type="button"
+              onClick={() => {
+                navigate({ to: "/tips" });
+                setMobileOpen(false);
+              }}
+              className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all min-touch ${
+                isActive("/tips")
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+              style={
+                isActive("/tips")
+                  ? {
+                      background: "oklch(0.72 0.17 185 / 0.1)",
+                      boxShadow: "inset 0 0 0 1px oklch(0.72 0.17 185 / 0.25)",
+                    }
+                  : undefined
+              }
+            >
+              <Lightbulb
+                className={`w-4 h-4 ${isActive("/tips") ? "text-primary" : ""}`}
+              />
+              {t("nav.tips")}
+            </button>
+
+            {/* Module section header */}
+            <div className="px-3.5 pt-3 pb-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t("nav.modules")}
+              </p>
+            </div>
+
+            {visibleModules.map(({ labelKey, path, icon: Icon, ocid }) => {
               const active = isActive(path);
               return (
                 <button
@@ -347,10 +523,18 @@ export default function Layout({ children }: LayoutProps) {
                   }
                 >
                   <Icon className={`w-4 h-4 ${active ? "text-primary" : ""}`} />
-                  {label}
+                  {t(labelKey)}
                 </button>
               );
             })}
+
+            {/* Language Selector in mobile */}
+            <div className="px-3.5 pt-3 pb-1 flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Language
+              </p>
+              <LanguageSelector />
+            </div>
           </div>
         )}
       </header>

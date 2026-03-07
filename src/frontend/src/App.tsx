@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import Layout from "./components/Layout";
 import { DemoProvider } from "./contexts/DemoContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import Dashboard from "./pages/Dashboard";
 import EyeControlModule from "./pages/EyeControlModule";
 import LoginPage from "./pages/LoginPage";
@@ -153,9 +154,11 @@ declare module "@tanstack/react-router" {
 export default function App() {
   return (
     <div className="dark">
-      <DemoProvider>
-        <RouterProvider router={router} />
-      </DemoProvider>
+      <LanguageProvider>
+        <DemoProvider>
+          <RouterProvider router={router} />
+        </DemoProvider>
+      </LanguageProvider>
     </div>
   );
 }
